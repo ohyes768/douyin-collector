@@ -12,6 +12,8 @@ from loguru import logger
 from src.utils import setup_logger, load_config
 from src.collector import DouyinCollector
 from src.uploader import VideoUploader
+from src.cookie_manager import get_cookie_manager
+from src.dingtalk_notifier import DingTalkNotifier
 
 
 def print_progress(current: int, total: int, success: int, skipped: int, failed: int):
@@ -39,6 +41,38 @@ async def main():
     logger.info("=" * 60)
     logger.info("douyin-collector 启动")
     logger.info("=" * 60)
+
+    # 验证 Cookie（使用 Playwright）
+    logger.info("正在验证 Cookie...")
+    cookie_mgr = get_cookie_manager("config/cookie.yaml")
+    is_valid, message = await cookie_mgr.validate_cookie_async()
+
+    if not is_valid:
+        logger.error(f"Cookie 验证失败: {message}")
+
+        # 发送钉钉通知
+        notify_config = config["app"].get("notification", {})
+        if notify_config.get("enabled", False):
+            webhook = notify_config.get("dingtalk_webhook")
+            if webhook:
+                notifier = DingTalkNotifier(webhook)
+                notifier.send_cookie_alert(message)
+
+        # 打印错误信息并退出
+        logger.error("=" * 60)
+        logger.error("Cookie 已失效，程序退出")
+        logger.error("=" * 60)
+        logger.error("请按以下步骤更新 Cookie：")
+        logger.error("1. 打开浏览器访问抖音并登录")
+        logger.error("2. 按 F12 打开开发者工具")
+        logger.error("3. 切换到 Network 标签")
+        logger.error("4. 刷新页面，找到任意请求")
+        logger.error("5. 复制 Request Headers 中的 Cookie")
+        logger.error("6. 更新到 config/cookie.yaml 文件")
+        logger.error("=" * 60)
+        sys.exit(1)
+
+    logger.info("Cookie 验证通过")
 
     # 获取配置
     collector_config = config["app"]["collector"]

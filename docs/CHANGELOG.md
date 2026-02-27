@@ -1,5 +1,32 @@
 # douyin-collector 变更日志
 
+## [1.0.2] - 2026-02-27
+
+### 新增功能
+
+- ✨ Cookie 验证功能
+  - 启动时自动验证 Cookie 有效性
+  - 使用 Playwright 检测登录弹窗 (#login-panel-new)
+  - 验证失败时程序退出并提示
+- 📢 钉钉通知功能
+  - Cookie 失效时发送钉钉告警
+  - 支持自定义 Webhook URL
+  - 消息包含"注意"关键字以满足安全验证
+
+### 配置
+
+- ⚙️ 新增通知配置项 (config/app.yaml)
+  - notification.enabled - 是否启用通知
+  - notification.dingtalk_webhook - 钉钉机器人地址
+
+### 代码
+
+- 🔧 新增 src/dingtalk_notifier.py - 钉钉通知模块
+- 🔧 新增 test_cookie.py - Cookie 验证测试脚本
+- 🔄 优化 src/cookie_manager.py - 添加异步验证方法
+
+---
+
 ## [1.0.1] - 2026-02-27
 
 ### Bug 修复
