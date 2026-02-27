@@ -17,6 +17,7 @@ ENV/
 *.swo
 
 # 配置文件（包含敏感信息）
+config/app.yaml
 config/cookie.yaml
 
 # 日志

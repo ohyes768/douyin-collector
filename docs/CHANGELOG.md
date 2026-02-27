@@ -1,5 +1,36 @@
 # douyin-collector 变更日志
 
+## [1.0.1] - 2026-02-27
+
+### Bug 修复
+
+- 🐛 修复视频下载 HTTP 403 错误
+  - 添加 User-Agent 和 Referer 请求头
+  - 模拟浏览器访问
+- 🐛 修复视频上传 ReadError 错误
+  - 调整 AsyncClient 和文件打开的顺序
+  - 将 AsyncClient 放在外层，open 放在内层
+- 🐛 修复 API 接口路径错误
+  - 上传接口从 `/api/upload` 改为 `/upload`
+  - 保持与 file-system-go 服务器一致
+
+### 功能改进
+
+- ✨ 上传时传递视频元数据
+  - 标题 (title)
+  - 作者 (author)
+  - 描述 (description)
+- 🔒 安全改进
+  - 将敏感配置文件添加到 .gitignore
+  - 创建 app.yaml.example 示例文件
+
+### 配置
+
+- ⚙️ 增加上传超时时间至 300 秒
+- ⏱️ 调整下载超时时间至 300 秒
+
+---
+
 ## [1.0.0] - 2026-02-26
 
 ### 新增
