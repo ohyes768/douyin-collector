@@ -1,0 +1,39 @@
+# douyin-collector 应用配置
+
+app:
+  # 服务器配置
+  server:
+    url: "http://120.26.218.136:8000"
+    timeout: 300            # 上传超时（秒）
+    check_endpoint: "/api/check/{filename}"
+    upload_endpoint: "/upload"
+
+  # Cookie 配置
+  cookie:
+    path: "config/cookie.yaml"
+
+  # 采集配置
+  collector:
+    days_limit: 7              # 默认最近 7 天
+    max_videos: 0              # 0 表示不限制
+    max_file_size: 104857600   # 100MB
+    exclude_products: true     # 排除商品视频
+
+  # 下载配置
+  download:
+    cache_dir: "cache/videos"
+    chunk_size: 1048576        # 1MB
+    timeout: 300
+
+  # 处理配置
+  processing:
+    max_retries: 3             # 最大重试次数
+    retry_delay: 5             # 重试延迟（秒）
+    serial: true               # 串行处理
+
+  # 日志配置
+  logging:
+    level: "INFO"
+    console: true
+    file: true
+    dir: "logs"

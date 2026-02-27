@@ -1,0 +1,10 @@
+# Cookie 配置示例
+# 请从浏览器复制实际的 Cookie 到下面
+
+douyin:
+  # 从浏览器开发者工具中复制完整的 Cookie 字符串
+  cookie: "your_cookie_here"
+
+  # 请求配置
+  timeout: 30
+  max_retries: 3
