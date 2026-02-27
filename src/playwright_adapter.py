@@ -1,6 +1,6 @@
 """
-基于 Playwright 的抖音收藏视频采集器
-通过监听网络请求获取收藏视频数据
+Playwright-based Douyin collection video scraper
+Fetches collection videos by monitoring network requests
 """
 
 import asyncio
@@ -12,7 +12,7 @@ from loguru import logger
 from src.models import VideoInfo
 from src.cookie_manager import get_cookie_manager
 
-# 常量定义
+# Constants
 _DEFAULT_TIMEOUT = 60
 _DEFAULT_COUNT = 18
 _MAX_PAGES = 5
@@ -20,10 +20,10 @@ _COLLECTION_URL = "https://www.douyin.com/user/self?showTab=favorite_collection"
 
 
 class PlaywrightAdapter:
-    """Playwright 适配器"""
+    """Playwright adapter"""
 
     def __init__(self, config_path: str = "") -> None:
-        """初始化适配器"""
+        """Init adapter"""
         self._config_path = config_path
         self._cookie_manager = get_cookie_manager(config_path or "config/cookie.yaml")
         self._playwright = None
@@ -31,7 +31,7 @@ class PlaywrightAdapter:
         self._context: Optional[BrowserContext] = None
 
     async def __aenter__(self):
-        """异步上下文管理器入口"""
+        """Async context enter"""
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.launch(
             headless=True,
@@ -48,26 +48,26 @@ class PlaywrightAdapter:
             timezone_id='Asia/Shanghai',
         )
 
-        # 注入反检测脚本
+        # Inject anti-detection script
         await self._context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
             });
         """)
 
-        # 注入 Cookie
+        # Inject Cookie
         cookie = self._cookie_manager.get_cookie()
         if cookie:
             cookies = self._parse_cookie_string(cookie)
             await self._context.add_cookies(cookies)
-            logger.debug(f"已注入 {len(cookies)} 个 Cookie")
+            logger.debug(f"Injected {len(cookies)} cookies")
         else:
-            logger.warning("Cookie 未配置，可能无法获取数据")
+            logger.warning("Cookie not configured, may fail to fetch data")
 
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """异步上下文管理器出口"""
+        """Async context exit"""
         if self._context:
             await self._context.close()
         if self._browser:
@@ -76,7 +76,7 @@ class PlaywrightAdapter:
             await self._playwright.stop()
 
     def _parse_cookie_string(self, cookie_str: str) -> List[dict]:
-        """解析 Cookie 字符串"""
+        """Parse Cookie string"""
         cookies = []
         for item in cookie_str.split(';'):
             item = item.strip()
@@ -96,10 +96,10 @@ class PlaywrightAdapter:
         days_start: int = 0,
         days_end: int = 0,
     ) -> List[VideoInfo]:
-        """获取所有收藏视频"""
-        logger.info("开始获取收藏视频...")
+        """Get all collection videos"""
+        logger.info("Fetching videos...")
 
-        # 计算时间范围
+        # Calculate time range
         import time
         current_time = int(time.time())
         time_min = 0
@@ -107,10 +107,10 @@ class PlaywrightAdapter:
 
         if days_end > 0:
             time_min = current_time - (days_end * 86400)
-            logger.info(f"时间过滤: 最近 {days_end} 天")
+            logger.info(f"Time filter: last {days_end} days")
 
         if not self._context:
-            logger.error("浏览器上下文未初始化")
+            logger.error("Browser context not initialized")
             return []
 
         all_videos = []
@@ -145,9 +145,9 @@ class PlaywrightAdapter:
                                             seen_ids.add(video.aweme_id)
                                             all_videos.append(video)
                                     except Exception as e:
-                                        logger.warning(f"解析视频失败: {e}")
+                                        logger.warning(f"Parse video failed: {e}")
                     except Exception as e:
-                        logger.debug(f"处理响应失败: {e}")
+                        logger.debug(f"Handle response failed: {e}")
 
             return handle_response
 
@@ -170,7 +170,7 @@ class PlaywrightAdapter:
 
                 page_count += 1
                 current_count = len(all_videos)
-                logger.info(f"已获取 {current_count} 个视频")
+                logger.info(f"Got {current_count} videos")
 
                 if current_count == last_count:
                     no_new_video_count += 1
@@ -186,17 +186,17 @@ class PlaywrightAdapter:
             if max_count > 0 and len(all_videos) > max_count:
                 all_videos = all_videos[:max_count]
 
-            logger.info(f"共获取 {len(all_videos)} 个收藏视频")
+            logger.info(f"Total: {len(all_videos)} videos")
             return all_videos
 
         except Exception as e:
-            logger.error(f"获取视频失败: {e}")
+            logger.error(f"Fetch failed: {e}")
             return []
         finally:
             await page.close()
 
     def _parse_video_info(self, item: dict) -> Optional[VideoInfo]:
-        """解析视频信息"""
+        """Parse video info"""
         try:
             aweme_id = item.get("aweme_id", "")
             desc = item.get("desc", "")
@@ -226,11 +226,11 @@ class PlaywrightAdapter:
                 is_product=is_product,
             )
         except Exception as e:
-            logger.warning(f"解析视频信息失败: {e}")
+            logger.warning(f"Parse video info failed: {e}")
             return None
 
     def _is_product_video(self, item: dict, title: str, desc: str) -> bool:
-        """判断是否为商品视频"""
+        """Check if product video"""
         product_keywords = ["购买", "商品", "橱窗", "小店", "商城", "优惠", "折扣", "秒杀", "抢购"]
         text_to_check = f"{title} {desc}".lower()
         for keyword in product_keywords:

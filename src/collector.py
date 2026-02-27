@@ -11,22 +11,22 @@ from src.playwright_adapter import PlaywrightAdapter
 
 
 class DouyinCollector:
-    """抖音收藏视频采集器"""
+    """Douyin Collector"""
 
     def __init__(self, config_path: str = "config/cookie.yaml") -> None:
-        """初始化采集器"""
+        """Init collector"""
         self._adapter = PlaywrightAdapter(config_path)
-        logger.info("抖音收藏视频采集器初始化完成")
+        logger.info("Collector ready")
         self._initialized = False
 
     async def __aenter__(self):
-        """异步上下文管理器入口"""
+        """Async context enter"""
         await self._adapter.__aenter__()
         self._initialized = True
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """异步上下文管理器出口"""
+        """Async context exit"""
         await self._adapter.__aexit__(exc_type, exc_val, exc_tb)
         self._initialized = False
 
@@ -37,12 +37,12 @@ class DouyinCollector:
         days_end: int = 0,
         exclude_products: bool = True
     ) -> List[VideoInfo]:
-        """获取收藏视频列表"""
+        """Fetch collection videos"""
         if not self._initialized:
-            logger.warning("采集器未初始化")
+            logger.warning("Collector not initialized")
             return []
 
-        logger.info("开始获取收藏视频列表...")
+        logger.info("Fetching videos...")
         videos = await self._adapter.get_all_collections_videos(
             max_count=max_count,
             days_start=days_start,
@@ -54,7 +54,7 @@ class DouyinCollector:
             videos = [v for v in videos if not v.is_product]
             excluded_count = original_count - len(videos)
             if excluded_count > 0:
-                logger.info(f"已过滤 {excluded_count} 个商品视频")
+                logger.info(f"Filtered {excluded_count} product videos")
 
-        logger.info(f"成功获取 {len(videos)} 个收藏视频")
+        logger.info(f"Got {len(videos)} videos")
         return videos

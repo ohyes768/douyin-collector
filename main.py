@@ -17,8 +17,8 @@ from src.dingtalk_notifier import DingTalkNotifier
 
 
 def print_progress(current: int, total: int, success: int, skipped: int, failed: int):
-    """打印进度"""
-    print(f"\r进度: {current}/{total} | 成功: {success} | 跳过: {skipped} | 失败: {failed}", end="", flush=True)
+    """Print progress"""
+    print(f"\rProgress: {current}/{total} | OK: {success} | Skip: {skipped} | Fail: {failed}", end="", flush=True)
 
 
 async def main():
@@ -39,16 +39,16 @@ async def main():
     )
 
     logger.info("=" * 60)
-    logger.info("douyin-collector 启动")
+    logger.info("douyin-collector starting")
     logger.info("=" * 60)
 
     # 验证 Cookie（使用 Playwright）
-    logger.info("正在验证 Cookie...")
+    logger.info("Validating Cookie...")
     cookie_mgr = get_cookie_manager("config/cookie.yaml")
     is_valid, message = await cookie_mgr.validate_cookie_async()
 
     if not is_valid:
-        logger.error(f"Cookie 验证失败: {message}")
+        logger.error(f"Cookie invalid: {message}")
 
         # 发送钉钉通知
         notify_config = config["app"].get("notification", {})
@@ -60,19 +60,19 @@ async def main():
 
         # 打印错误信息并退出
         logger.error("=" * 60)
-        logger.error("Cookie 已失效，程序退出")
+        logger.error("Cookie expired, exit")
         logger.error("=" * 60)
-        logger.error("请按以下步骤更新 Cookie：")
-        logger.error("1. 打开浏览器访问抖音并登录")
-        logger.error("2. 按 F12 打开开发者工具")
-        logger.error("3. 切换到 Network 标签")
-        logger.error("4. 刷新页面，找到任意请求")
-        logger.error("5. 复制 Request Headers 中的 Cookie")
-        logger.error("6. 更新到 config/cookie.yaml 文件")
+        logger.error("Update Cookie:")
+        logger.error("1. Open douyin.com and login")
+        logger.error("2. Press F12 to open DevTools")
+        logger.error("3. Go to Network tab")
+        logger.error("4. Refresh page, find any request")
+        logger.error("5. Copy Cookie from Request Headers")
+        logger.error("6. Update config/cookie.yaml")
         logger.error("=" * 60)
         sys.exit(1)
 
-    logger.info("Cookie 验证通过")
+    logger.info("Cookie valid")
 
     # 获取配置
     collector_config = config["app"]["collector"]
@@ -86,7 +86,7 @@ async def main():
     # 采集视频
     try:
         async with DouyinCollector("config/cookie.yaml") as collector:
-            logger.info(f"开始采集最近 {days_limit} 天的收藏视频...")
+            logger.info(f"Fetching last {days_limit} days videos...")
 
             videos = await collector.fetch_collection_videos(
                 max_count=max_videos,
@@ -95,10 +95,10 @@ async def main():
             )
 
             if not videos:
-                logger.warning("未获取到任何视频，请检查 Cookie 是否有效")
+                logger.warning("No videos found")
                 return
 
-            logger.info(f"成功获取 {len(videos)} 个视频")
+            logger.info(f"Got {len(videos)} videos")
 
             # 处理视频
             stats = await uploader.process_videos(videos, progress_callback=print_progress)
@@ -106,12 +106,12 @@ async def main():
             # 输出结果
             print()  # 换行
             logger.info("=" * 60)
-            logger.info("处理完成")
-            logger.info(f"总计: {stats['total']} | 成功: {stats['success']} | 跳过: {stats['skipped']} | 失败: {stats['failed']}")
+            logger.info("Done")
+            logger.info(f"Total: {stats['total']} | OK: {stats['success']} | Skip: {stats['skipped']} | Fail: {stats['failed']}")
             logger.info("=" * 60)
 
     except Exception as e:
-        logger.exception(f"运行失败: {e}")
+        logger.exception(f"Error: {e}")
         sys.exit(1)
 
 
@@ -119,5 +119,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("\n用户中断")
+        logger.info("\nInterrupted")
         sys.exit(0)

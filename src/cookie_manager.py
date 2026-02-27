@@ -24,20 +24,20 @@ class CookieManager:
         return cls._instance
 
     def _load_cookie(self):
-        """从配置文件加载 Cookie"""
+        """Load Cookie from config"""
         try:
             if self._config_path.exists():
                 with open(self._config_path, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
                     self._cookie = config.get("douyin", {}).get("cookie", "")
                     if self._cookie:
-                        logger.info("已加载 Cookie")
+                        logger.info("Cookie loaded")
                     else:
-                        logger.warning("Cookie 配置为空")
+                        logger.warning("Cookie is empty")
             else:
-                logger.warning(f"Cookie 配置文件不存在: {self._config_path}")
+                logger.warning(f"Cookie file not found: {self._config_path}")
         except Exception as e:
-            logger.warning(f"加载 Cookie 失败: {e}")
+            logger.warning(f"Load Cookie failed: {e}")
 
     def get_cookie(self) -> str:
         """获取当前 Cookie"""
@@ -45,18 +45,18 @@ class CookieManager:
 
     async def validate_cookie_async(self) -> tuple[bool, str]:
         """
-        异步验证 Cookie 是否有效（使用 Playwright）
+        Validate Cookie using Playwright
 
-        通过访问收藏页面，检查是否跳转到登录页来判断
+        Check if login popup appears when visiting favorites page
 
         Returns:
-            (is_valid, message): 是否有效及提示信息
+            (is_valid, message): Valid status and message
         """
         if not self._cookie:
-            return False, "Cookie 为空"
+            return False, "Cookie is empty"
 
         if "sessionid=" not in self._cookie:
-            return False, "Cookie 缺少 sessionid 字段"
+            return False, "Cookie missing sessionid"
 
         # 使用 Playwright 验证
         from playwright.async_api import async_playwright
@@ -64,7 +64,7 @@ class CookieManager:
         import asyncio
 
         try:
-            logger.info("正在验证 Cookie（访问收藏页面）...")
+            logger.info("Validating Cookie...")
 
             playwright = await async_playwright().start()
             browser = await playwright.chromium.launch(headless=True)
@@ -76,7 +76,7 @@ class CookieManager:
             # 解析并注入 Cookie
             cookies = self._parse_cookie_string(self._cookie)
             await context.add_cookies(cookies)
-            logger.debug(f"已注入 {len(cookies)} 个 Cookie")
+            logger.debug(f"Injected {len(cookies)} cookies")
 
             page = await context.new_page()
 
@@ -95,53 +95,53 @@ class CookieManager:
             if login_panel:
                 await browser.close()
                 await playwright.stop()
-                return False, "检测到登录弹窗，Cookie 已失效"
+                return False, "Login popup detected, Cookie expired"
 
             # 如果没有登录弹窗，说明 Cookie 有效
             await browser.close()
             await playwright.stop()
 
-            return True, "Cookie 有效（能访问收藏页面）"
+            return True, "Cookie valid"
 
         except Exception as e:
-            return False, f"验证过程出错: {e}"
+            return False, f"Validation error: {e}"
 
     def validate_cookie(self) -> tuple[bool, str]:
         """
-        同步验证 Cookie（只检查字段完整性）
+        Validate Cookie (field check only)
 
-        注意：完整的验证需要使用 validate_cookie_async() 方法
+        Note: Use validate_cookie_async() for full validation
 
         Returns:
-            (is_valid, message): 是否有效及提示信息
+            (is_valid, message): Valid status and message
         """
-        # 1. 检查 Cookie 是否为空
+        # 1. Check if empty
         if not self._cookie:
-            return False, "Cookie 为空"
+            return False, "Cookie is empty"
 
-        # 2. 检查关键字段是否存在
+        # 2. Check sessionid field
         if "sessionid=" not in self._cookie:
-            return False, "Cookie 缺少 sessionid 字段"
+            return False, "Cookie missing sessionid"
 
-        # 3. 检查登录时间是否过期（简单判断）
+        # 3. Check login time
         import re
         login_time_match = re.search(r'login_time=(\d+)', self._cookie)
         if login_time_match:
             login_time = int(login_time_match.group(1))
             import time
             current_time = int(time.time())
-            # 如果登录时间超过 30 天，可能已过期
+            # Expire after 30 days
             if current_time - login_time > 30 * 86400:
-                return False, f"登录时间已过期 ({login_time})"
+                return False, f"Login time expired ({login_time})"
 
-        # 4. 检查 Cookie 长度
+        # 4. Check length
         if len(self._cookie) < 100:
-            return False, f"Cookie 长度过短 ({len(self._cookie)} 字符)"
+            return False, f"Cookie too short ({len(self._cookie)} chars)"
 
-        return True, "Cookie 格式正确"
+        return True, "Cookie format OK"
 
     def _parse_cookie_string(self, cookie_str: str) -> list:
-        """解析 Cookie 字符串为 Playwright 格式"""
+        """Parse Cookie string to Playwright format"""
         cookies = []
         for item in cookie_str.split(';'):
             item = item.strip()
@@ -157,12 +157,12 @@ class CookieManager:
 
 
 
-# 全局 Cookie 管理器实例
+# Global Cookie manager instance
 _cookie_manager: Optional[CookieManager] = None
 
 
 def get_cookie_manager(config_path: str = "config/cookie.yaml") -> CookieManager:
-    """获取全局 Cookie 管理器实例"""
+    """Get global Cookie manager instance"""
     global _cookie_manager
     if _cookie_manager is None:
         _cookie_manager = CookieManager(config_path)

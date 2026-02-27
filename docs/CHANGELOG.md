@@ -1,5 +1,25 @@
 # douyin-collector 变更日志
 
+## [1.0.3] - 2026-02-27
+
+### 功能改进
+
+- 🔄 日志输出统一改为英文
+  - 所有 logger 输出改为简单的英文
+  - 方便在 windows-schedule 调度任务中查看日志
+  - 提高日志可读性
+
+### 代码
+
+- 🔄 优化 main.py - 日志英文化
+- 🔄 优化 src/collector.py - 日志英文化
+- 🔄 优化 src/uploader.py - 日志英文化
+- 🔄 优化 src/cookie_manager.py - 日志英文化
+- 🔄 优化 src/playwright_adapter.py - 日志英文化
+- 🔄 优化 src/dingtalk_notifier.py - 日志英文化
+
+---
+
 ## [1.0.2] - 2026-02-27
 
 ### 新增功能

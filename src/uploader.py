@@ -33,16 +33,16 @@ class VideoUploader:
         # 确保缓存目录存在
         ensure_dir(str(self._cache_dir))
 
-        logger.info(f"上传器初始化完成 - 服务器: {self._server_url}")
+        logger.info(f"Uploader ready - Server: {self._server_url}")
 
     async def check_file_exists(self, filename: str) -> Optional[Dict[str, Any]]:
-        """检查服务器上是否已存在文件
+        """Check if file exists on server
 
         Args:
-            filename: 文件名
+            filename: File name
 
         Returns:
-            文件信息，不存在返回 None
+            File info, None if not exists
         """
         url = f"{self._server_url}/api/check/{filename}"
 
@@ -53,28 +53,28 @@ class VideoUploader:
                 if response.status_code == 200:
                     data = response.json()
                     if data.get("exists"):
-                        logger.info(f"文件已存在: {filename}")
+                        logger.info(f"File exists: {filename}")
                         return data
                     return None
                 else:
-                    logger.warning(f"检查文件失败: {response.status_code}")
+                    logger.warning(f"Check failed: HTTP {response.status_code}")
                     return None
 
         except Exception as e:
-            logger.warning(f"检查文件存在失败: {e}")
+            logger.warning(f"Check error: {e}")
             return None
 
     async def download_video(self, video_info: VideoInfo) -> Optional[str]:
-        """下载视频文件
+        """Download video file
 
         Args:
-            video_info: 视频信息
+            video_info: Video info
 
         Returns:
-            本地文件路径，失败返回 None
+            Local file path, None if failed
         """
         if not video_info.video_url:
-            logger.warning(f"视频 {video_info.aweme_id} 没有下载链接")
+            logger.warning(f"Video {video_info.aweme_id} no URL")
             return None
 
         filename = f"{video_info.aweme_id}.mp4"
@@ -82,10 +82,10 @@ class VideoUploader:
 
         # 检查是否已下载
         if filepath.exists():
-            logger.info(f"视频已下载: {filename}")
+            logger.info(f"Video cached: {filename}")
             return str(filepath)
 
-        logger.info(f"开始下载视频: {video_info.title[:30]}...")
+        logger.info(f"Downloading: {video_info.title[:30]}...")
 
         for attempt in range(self._max_retries):
             try:
@@ -97,7 +97,7 @@ class VideoUploader:
                 async with httpx.AsyncClient(timeout=self._config["app"]["download"]["timeout"]) as client:
                     async with client.stream("GET", video_info.video_url, headers=headers) as response:
                         if response.status_code != 200:
-                            logger.warning(f"下载失败: HTTP {response.status_code}")
+                            logger.warning(f"Download failed: HTTP {response.status_code}")
                             if attempt < self._max_retries - 1:
                                 await asyncio.sleep(self._retry_delay)
                             continue
@@ -109,31 +109,31 @@ class VideoUploader:
                                 f.write(chunk)
                                 total_size += len(chunk)
 
-                        logger.info(f"下载完成: {filename} ({format_size(total_size)})")
+                        logger.info(f"Downloaded: {filename} ({format_size(total_size)})")
                         return str(filepath)
 
             except Exception as e:
-                logger.warning(f"下载失败 (尝试 {attempt + 1}/{self._max_retries}): {e}")
+                logger.warning(f"Download fail ({attempt + 1}/{self._max_retries}): {e}")
                 if attempt < self._max_retries - 1:
                     await asyncio.sleep(self._retry_delay)
 
-        logger.error(f"下载失败: {video_info.aweme_id}")
+        logger.error(f"Download failed: {video_info.aweme_id}")
         return None
 
     async def upload_video(self, filepath: str, video_info: VideoInfo) -> bool:
-        """上传视频文件
+        """Upload video file
 
         Args:
-            filepath: 本地文件路径
-            video_info: 视频信息
+            filepath: Local file path
+            video_info: Video info
 
         Returns:
-            是否成功
+            Success or not
         """
         filename = Path(filepath).name
         url = f"{self._server_url}/upload"
 
-        logger.info(f"开始上传: {filename}")
+        logger.info(f"Uploading: {filename}")
 
         for attempt in range(self._max_retries):
             try:
@@ -152,32 +152,32 @@ class VideoUploader:
                     if response.status_code == 200:
                         data = response.json()
                         if data.get("success"):
-                            logger.info(f"上传成功: {filename}")
+                            logger.info(f"Uploaded: {filename}")
                             return True
                         else:
-                            logger.warning(f"上传失败: {data.get('error', 'Unknown')}")
+                            logger.warning(f"Upload failed: {data.get('error', 'Unknown')}")
                     else:
-                        logger.warning(f"上传失败: HTTP {response.status_code}")
+                        logger.warning(f"Upload failed: HTTP {response.status_code}")
 
             except Exception as e:
                 import traceback
-                logger.warning(f"上传失败 (尝试 {attempt + 1}/{self._max_retries}): {type(e).__name__}: {e}")
-                logger.debug(f"详细错误:\n{traceback.format_exc()}")
+                logger.warning(f"Upload error ({attempt + 1}/{self._max_retries}): {type(e).__name__}: {e}")
+                logger.debug(f"Trace:\n{traceback.format_exc()}")
 
             if attempt < self._max_retries - 1:
                 await asyncio.sleep(self._retry_delay)
 
-        logger.error(f"上传失败: {filename}")
+        logger.error(f"Upload failed: {filename}")
         return False
 
     async def process_video(self, video_info: VideoInfo) -> Dict[str, Any]:
-        """处理单个视频：下载 -> 检查 -> 上传 -> 删除
+        """Process single video: download -> check -> upload -> delete
 
         Args:
-            video_info: 视频信息
+            video_info: Video info
 
         Returns:
-            处理结果
+            Process result
         """
         result = {
             "aweme_id": video_info.aweme_id,
@@ -194,13 +194,13 @@ class VideoUploader:
         if exists_info:
             result["skipped"] = True
             result["success"] = True
-            logger.info(f"跳过已存在: {video_info.title[:30]}...")
+            logger.info(f"Skip exists: {video_info.title[:30]}...")
             return result
 
         # 下载视频
         filepath = await self.download_video(video_info)
         if not filepath:
-            result["error"] = "下载失败"
+            result["error"] = "Download failed"
             return result
 
         # 上传视频
@@ -208,11 +208,11 @@ class VideoUploader:
         if upload_success:
             result["success"] = True
         else:
-            result["error"] = "上传失败"
+            result["error"] = "Upload failed"
 
         # 删除本地文件
         if delete_file(filepath):
-            logger.debug(f"已删除本地文件: {filename}")
+            logger.debug(f"Deleted: {filename}")
 
         return result
 
@@ -221,24 +221,24 @@ class VideoUploader:
         videos: list[VideoInfo],
         progress_callback=None
     ) -> Dict[str, Any]:
-        """批量处理视频
+        """Process videos in batch
 
         Args:
-            videos: 视频列表
-            progress_callback: 进度回调函数
+            videos: Video list
+            progress_callback: Progress callback
 
         Returns:
-            处理统计
+            Process stats
         """
         total = len(videos)
         success = 0
         skipped = 0
         failed = 0
 
-        logger.info(f"开始处理 {total} 个视频...")
+        logger.info(f"Processing {total} videos...")
 
         for i, video in enumerate(videos, 1):
-            logger.info(f"[{i}/{total}] 处理: {video.title[:30]}...")
+            logger.info(f"[{i}/{total}] {video.title[:30]}...")
 
             result = await self.process_video(video)
 
@@ -248,7 +248,7 @@ class VideoUploader:
                 success += 1
             else:
                 failed += 1
-                logger.error(f"处理失败: {video.title[:30]}... - {result['error']}")
+                logger.error(f"Failed: {video.title[:30]}... - {result['error']}")
 
             # 进度回调
             if progress_callback:
@@ -261,5 +261,5 @@ class VideoUploader:
             "failed": failed
         }
 
-        logger.info(f"处理完成: 成功 {success}, 跳过 {skipped}, 失败 {failed}")
+        logger.info(f"Done - OK: {success}, Skip: {skipped}, Fail: {failed}")
         return stats

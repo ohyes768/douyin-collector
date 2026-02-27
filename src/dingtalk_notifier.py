@@ -1,5 +1,5 @@
 """
-钉钉通知模块
+DingTalk notification module
 """
 
 import httpx
@@ -7,26 +7,26 @@ from loguru import logger
 
 
 class DingTalkNotifier:
-    """钉钉通知器"""
+    """DingTalk notifier"""
 
     def __init__(self, webhook_url: str):
         """
-        初始化钉钉通知器
+        Init DingTalk notifier
 
         Args:
-            webhook_url: 钉钉机器人 Webhook URL
+            webhook_url: DingTalk webhook URL
         """
         self.webhook_url = webhook_url
 
     def send_cookie_alert(self, reason: str) -> bool:
         """
-        发送 Cookie 失效告警
+        Send Cookie expiration alert
 
         Args:
-            reason: 失效原因
+            reason: Expiration reason
 
         Returns:
-            是否发送成功
+            Success or not
         """
         message = f"""【注意】抖音采集器告警
 
@@ -55,13 +55,13 @@ Cookie 已失效！
             if response.status_code == 200:
                 result = response.json()
                 if result.get("errcode") == 0:
-                    logger.info("钉钉通知发送成功")
+                    logger.info("DingTalk sent OK")
                     return True
                 else:
-                    logger.warning(f"钉钉通知返回错误: {result}")
+                    logger.warning(f"DingTalk error: {result}")
             else:
-                logger.warning(f"钉钉通知发送失败: HTTP {response.status_code}")
+                logger.warning(f"DingTalk failed: HTTP {response.status_code}")
         except Exception as e:
-            logger.warning(f"钉钉通知发送异常: {e}")
+            logger.warning(f"DingTalk error: {e}")
 
         return False
