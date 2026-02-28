@@ -1,15 +1,30 @@
 # douyin-collector
 
-抖音收藏视频采集和上传工具（Windows 客户端）
+抖音收藏视频采集工具（Windows 客户端）
 
 ## 功能
 
 - 采集抖音收藏视频（使用 Playwright）
 - 下载视频文件到本地
-- 上传到 file-system-go 服务器
+- **转换为 WAV 音频格式**
+- **上传 WAV 音频到 file-system-go 服务器**
 - 支持时间过滤（默认最近 7 天）
 - 支持增量处理（跳过已上传视频）
 - 自动重试机制
+
+## 处理流程
+
+```
+采集视频列表
+    ↓
+下载 MP4 视频
+    ↓
+转换为 WAV 音频 (FFmpeg)
+    ↓
+上传 WAV 到 file-system-go
+    ↓
+删除本地文件
+```
 
 ## 安装
 
@@ -70,7 +85,7 @@ scripts\run.bat
 douyin-collector/
 ├── src/                    # 源代码
 │   ├── collector.py        # 采集器
-│   ├── uploader.py         # 上传器
+│   ├── uploader.py         # 上传器（含音频转换）
 │   ├── playwright_adapter.py
 │   ├── cookie_manager.py
 │   ├── models.py
@@ -82,7 +97,7 @@ douyin-collector/
 │   ├── run.bat
 │   └── install.bat
 ├── logs/                   # 日志目录
-├── cache/videos/           # 视频缓存
+├── cache/audios/           # 音频缓存（临时）
 ├── main.py                 # 主入口
 └── pyproject.toml
 ```
@@ -90,8 +105,8 @@ douyin-collector/
 ## 相关项目
 
 - [douying-collect](../douying-collect) - 原始项目
-- [file-system-go](../file-system-go) - 文件服务器
-- [douyin-processor](../douyin-processor) - 视频处理器（服务器端）
+- [file-system-go](../file-system-go) - 文件服务器（存储 WAV 音频）
+- [douyin-processor](../douyin-processor) - 音频处理器（ASR 识别）
 
 ## 文档
 
@@ -104,4 +119,5 @@ douyin-collector/
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| 1.1.0 | 2026-02-28 | 更新架构：转换为 WAV 后上传音频 |
 | 1.0.0 | 2026-02-26 | 初始版本 |

@@ -8,6 +8,7 @@ dependencies = [
     "httpx>=0.25.0",
     "pyyaml>=6.0",
     "loguru>=0.7.0",
+    "ffmpy>=0.3.0",
 ]
 
 [build-system]

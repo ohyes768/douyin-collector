@@ -1,5 +1,33 @@
 # douyin-collector 变更日志
 
+## [1.1.0] - 2026-02-28
+
+### 重大架构变更
+
+- ✨ 处理流程重构：下载视频 → 转换为 WAV 音频 → 上传音频
+  - 使用 FFmpeg 将 MP4 视频转换为 WAV 音频（16kHz, mono, PCM）
+  - 上传 WAV 文件而非视频文件，节省存储和带宽
+  - 与 ASR 识别流程直接对接
+
+### 配置
+
+- ⚙️ 缓存目录重命名：`cache/videos/` → `cache/audios/`
+- ⚙️ 新增依赖：`ffmpy>=0.3.0` - FFmpeg Python 封装
+
+### 代码
+
+- 🔧 新增 uploader.convert_to_wav() - 音频转换方法
+- 🔧 新增 uploader.upload_wav() - WAV 音频上传方法
+- 🔄 重构 uploader.process_video() - 更新处理流程
+- 🔄 优化 uploader.upload_video() → upload_wav() - 调整方法命名
+
+### 文档
+
+- 📝 更新 README.md - 反映新架构和处理流程
+- 📝 更新技术规范.md - 架构版本 v1.0 → v1.1
+
+---
+
 ## [1.0.3] - 2026-02-27
 
 ### 功能改进

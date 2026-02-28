@@ -1,6 +1,7 @@
 """
 视频上传器
-下载视频并上传到 file-system-go 服务器
+下载视频、转换为音频（WAV）、上传到 file-system-go 服务器
+处理流程：下载 MP4 → 转换为 WAV → 上传 WAV → 删除本地文件
 """
 
 import asyncio
@@ -8,6 +9,7 @@ import httpx
 from pathlib import Path
 from typing import Optional, Dict, Any
 from loguru import logger
+from ffmpy import FFmpeg
 
 from src.models import VideoInfo
 from src.utils import ensure_dir, delete_file, format_size
@@ -120,6 +122,91 @@ class VideoUploader:
         logger.error(f"Download failed: {video_info.aweme_id}")
         return None
 
+    async def convert_to_wav(self, video_path: str) -> Optional[str]:
+        """Convert video to WAV audio
+
+        Args:
+            video_path: Video file path
+
+        Returns:
+            WAV file path, None if failed
+        """
+        video_file = Path(video_path)
+        wav_file = video_file.with_suffix(".wav")
+
+        logger.info(f"Converting to WAV: {video_file.name}")
+
+        try:
+            # 使用 FFmpeg 提取音频
+            ff = FFmpeg(
+                inputs={str(video_file): None},
+                outputs={
+                    str(wav_file): "-vn -acodec pcm_s16le -ar 16000 -ac 1"
+                }
+            )
+
+            # 执行转换
+            await asyncio.to_thread(ff.run)
+
+            if wav_file.exists():
+                file_size = wav_file.stat().st_size
+                logger.info(f"Converted: {wav_file.name} ({format_size(file_size)})")
+                return str(wav_file)
+            else:
+                logger.error(f"Conversion failed: {video_file.name}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Conversion error: {e}")
+            return None
+
+    async def upload_wav(self, wav_path: str, video_info: VideoInfo) -> bool:
+        """Upload WAV audio file
+
+        Args:
+            wav_path: WAV file path
+            video_info: Video info
+
+        Returns:
+            Success or not
+        """
+        filename = Path(wav_path).name
+        url = f"{self._server_url}/upload"
+
+        logger.info(f"Uploading: {filename}")
+
+        for attempt in range(self._max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    with open(wav_path, "rb") as f:
+                        files = {"file": (filename, f, "audio/wav")}
+                        # 传递音频元数据
+                        data = {
+                            "title": video_info.title,
+                            "author": video_info.author,
+                            "description": video_info.desc,
+                        }
+                        response = await client.post(url, files=files, data=data)
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get("success"):
+                            logger.info(f"Uploaded: {filename}")
+                            return True
+                        else:
+                            logger.warning(f"Upload failed: {data.get('error', 'Unknown')}")
+                    else:
+                        logger.warning(f"Upload failed: HTTP {response.status_code}")
+
+            except Exception as e:
+                logger.warning(f"Upload error ({attempt + 1}/{self._max_retries}): {e}")
+
+            if attempt < self._max_retries - 1:
+                await asyncio.sleep(self._retry_delay)
+
+        logger.error(f"Upload failed: {filename}")
+        return False
+
     async def upload_video(self, filepath: str, video_info: VideoInfo) -> bool:
         """Upload video file
 
@@ -171,7 +258,7 @@ class VideoUploader:
         return False
 
     async def process_video(self, video_info: VideoInfo) -> Dict[str, Any]:
-        """Process single video: download -> check -> upload -> delete
+        """Process single video: download -> convert to wav -> check -> upload wav -> delete
 
         Args:
             video_info: Video info
@@ -187,32 +274,39 @@ class VideoUploader:
             "error": ""
         }
 
-        filename = f"{video_info.aweme_id}.mp4"
+        wav_filename = f"{video_info.aweme_id}.wav"
 
-        # 检查服务器是否已存在
-        exists_info = await self.check_file_exists(filename)
+        # 检查服务器是否已存在 WAV 文件
+        exists_info = await self.check_file_exists(wav_filename)
         if exists_info:
             result["skipped"] = True
             result["success"] = True
             logger.info(f"Skip exists: {video_info.title[:30]}...")
             return result
 
-        # 下载视频
-        filepath = await self.download_video(video_info)
-        if not filepath:
+        # 下载视频 (MP4)
+        video_path = await self.download_video(video_info)
+        if not video_path:
             result["error"] = "Download failed"
             return result
 
-        # 上传视频
-        upload_success = await self.upload_video(filepath, video_info)
+        # 转换为音频 (WAV)
+        wav_path = await self.convert_to_wav(video_path)
+        if not wav_path:
+            result["error"] = "Convert to WAV failed"
+            delete_file(video_path)  # 清理 MP4
+            return result
+
+        # 上传 WAV 音频
+        upload_success = await self.upload_wav(wav_path, video_info)
         if upload_success:
             result["success"] = True
         else:
-            result["error"] = "Upload failed"
+            result["error"] = "Upload WAV failed"
 
         # 删除本地文件
-        if delete_file(filepath):
-            logger.debug(f"Deleted: {filename}")
+        delete_file(video_path)
+        delete_file(wav_path)
 
         return result
 
