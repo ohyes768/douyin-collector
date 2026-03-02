@@ -46,6 +46,24 @@ class VideoUploader:
         Returns:
             File info, None if not exists
         """
+        # 首先检查文件是否已被删除
+        deleted_check_url = f"{self._server_url}/api/deleted/check"
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    deleted_check_url,
+                    json={"filenames": [filename]}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("success") and filename in data.get("deleted", []):
+                        logger.info(f"File was deleted, skip upload: {filename}")
+                        # 返回一个特殊标记，表示已删除但需要跳过
+                        return {"exists": True, "deleted": True}
+        except Exception as e:
+            logger.warning(f"Check deleted status error: {e}")
+
+        # 检查文件是否已存在
         url = f"{self._server_url}/api/check/{filename}"
 
         try:
