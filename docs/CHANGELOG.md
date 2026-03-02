@@ -1,4 +1,5 @@
 # douyin-collector 变更日志
+## [1.2.0] - 2026-03-02### 功能改进- ✨ 上传前检查文件是否已删除  - 调用 file-system-go 的 /api/deleted/check 接口  - 防止重复推送已删除的文件  - 提升采集效率### 代码- 🔧 优化 src/uploader.py - check_file_exists() 方法添加删除状态检查---
 
 ## [1.1.0] - 2026-02-28
 
