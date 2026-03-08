@@ -43,7 +43,7 @@ class PlaywrightAdapter:
         )
         self._context = await self._browser.new_context(
             viewport={'width': 1920, 'height': 1080},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             locale='zh-CN',
             timezone_id='Asia/Shanghai',
         )
@@ -289,3 +289,140 @@ class PlaywrightAdapter:
             if keyword in text_to_check:
                 return True
         return False
+
+    async def uncollect_video_ui(self, aweme_id: str) -> bool:
+        """通过 UI 操作取消收藏
+
+        Args:
+            aweme_id: 视频ID
+
+        Returns:
+            bool: 是否成功取消收藏
+        """
+        if not self._context:
+            logger.error("Browser context not initialized")
+            return False
+
+        logger.info(f"Uncollecting video {aweme_id} via UI...")
+
+        try:
+            page = await self._context.new_page()
+
+            # 访问视频详情页
+            video_url = f"https://www.douyin.com/video/{aweme_id}"
+            await page.goto(video_url, wait_until='domcontentloaded', timeout=_DEFAULT_TIMEOUT * 1000)
+
+            # 等待页面加载完成
+            await asyncio.sleep(5)  # 等待更长时间让页面完全加载
+
+            # 调试信息：打印页面标题
+            title = await page.title()
+            logger.info(f"Page title: {title}")
+
+            # 调试信息：检查是否有登录弹窗
+            login_popup = await page.query_selector('#login-panel-new')
+            if login_popup:
+                logger.warning("Login popup detected, need to handle login first")
+                return False
+
+            # 初始化变量
+            button_clicked = False
+
+            # 调试信息：查找包含"收藏"的元素
+            logger.info("Searching for elements containing '收藏'...")
+            elements_with_collect = await page.query_selector_all('text="收藏"')
+            logger.info(f"Found {len(elements_with_collect)} elements with '收藏' text")
+
+            # 调试信息：查找所有按钮
+            logger.info("Searching for all buttons...")
+            all_buttons = await page.query_selector_all('button')
+            logger.info(f"Found {len(all_buttons)} buttons on page")
+
+            # 打印所有按钮的文本
+            for i, button in enumerate(all_buttons):
+                try:
+                    text = await button.inner_text()
+                    logger.info(f"Button {i+1}: {text}")
+                    # 如果是第3个按钮，直接点击它
+                    if i == 2:  # 索引2是第3个按钮
+                        logger.info(f"*** Clicking button 3 (potentially collection button) ***")
+                        await button.click()
+                        button_clicked = True
+                        logger.info(f"Clicked button 3")
+                        await asyncio.sleep(1)
+
+                        # 验证状态
+                        updated_text = await button.inner_text()
+                        logger.info(f"Button 3 text after click: {updated_text}")
+
+                        # 如果变成"已收藏"，需要再次点击取消
+                        if "已收藏" in updated_text:
+                            await button.click()
+                            logger.info("Uncollected by clicking '已收藏' button")
+                        elif "收藏" in updated_text:
+                            # 如果还是收藏状态，再次尝试点击
+                            logger.info("Still showing as '收藏', trying again...")
+                            await button.click()
+                            await asyncio.sleep(2)
+                            final_text = await button.inner_text()
+                            logger.info(f"Button 3 text after second click: {final_text}")
+                            if "已收藏" in final_text:
+                                await button.click()
+                                logger.info("Uncollected by third click")
+                        break
+                    # 特别关注包含"收藏"的按钮（使用更宽松的匹配）
+                    elif "收藏" in text or "收藏" in text:
+                        logger.info(f"*** Found collection button at position {i+1}: {text} ***")
+                        # 直接点击这个按钮
+                        await button.click()
+                        button_clicked = True
+                        logger.info(f"Clicked collection button: {text}")
+                        await asyncio.sleep(1)
+
+                        # 验证状态
+                        updated_text = await button.inner_text()
+                        logger.info(f"Button text after click: {updated_text}")
+
+                        # 如果是收藏状态，再次点击取消
+                        if "已收藏" in updated_text or "已收藏" in updated_text:
+                            await button.click()
+                            logger.info("Uncollected by clicking '已收藏' button")
+                        break
+                    else:
+                        # 如果文本是空字符串或其他，可能需要查看属性
+                        try:
+                            button_html = await button.inner_html()
+                            if "收藏" in button_html:
+                                logger.info(f"*** Found collection button in HTML at position {i+1} ***")
+                                await button.click()
+                                button_clicked = True
+                                break
+                        except:
+                            pass
+                except:
+                    logger.info(f"Button {i+1}: [Could not get text]")
+
+            if button_clicked:
+                logger.info(f"Successfully uncollected video {aweme_id}")
+            else:
+                logger.error("Could not find collection button on the page")
+
+                # 尝试截图帮助调试
+                try:
+                    await page.screenshot(path=f"debug_uncollect_{aweme_id}.png")
+                    logger.info("Saved debug screenshot")
+                except Exception as e:
+                    logger.warning(f"Failed to save debug screenshot: {e}")
+
+                return False
+
+            logger.info(f"Successfully uncollected video {aweme_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Uncollect video {aweme_id} failed: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
+        finally:
+            await page.close()
