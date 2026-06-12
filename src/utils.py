@@ -3,6 +3,7 @@
 """
 
 import json
+import sys
 from pathlib import Path
 from loguru import logger
 
@@ -14,6 +15,13 @@ def setup_logger(
 ) -> None:
     """配置日志器"""
     logger.remove()
+    # Windows cmd 默认 GBK 编码，遇到 emoji/中文标点会 UnicodeEncodeError
+    # 把 stdout 改 UTF-8 + errors='replace'，无法编码的字符替换为 ?，避免崩
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, OSError):
+        # 非 TextIOWrapper（如被重定向到特殊流）时跳过
+        pass
     log_path = Path(log_dir)
     log_path.mkdir(parents=True, exist_ok=True)
 

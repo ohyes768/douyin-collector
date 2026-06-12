@@ -14,8 +14,6 @@ from src.cookie_manager import get_cookie_manager
 
 # Constants
 _DEFAULT_TIMEOUT = 60
-_DEFAULT_COUNT = 18
-_MAX_PAGES = 5
 _COLLECTION_URL = "https://www.douyin.com/user/self?showTab=favorite_collection"
 
 
@@ -92,9 +90,8 @@ class PlaywrightAdapter:
 
     async def get_all_collections_videos(
         self,
-        max_count: int = 0,
-        days_start: int = 0,
-        days_end: int = 0,
+        max_pages: int = 3,
+        max_count: int = 40,
     ) -> List[VideoInfo]:
         """Get all collection videos by monitoring network requests with page scrolling
 
@@ -104,25 +101,6 @@ class PlaywrightAdapter:
         """
         logger.info("Fetching videos...")
 
-        import time
-        current_time = int(time.time())
-        time_min = 0
-        time_max = 0
-
-        # Calculate time range (in seconds)
-        if days_end > 0:
-            time_max = current_time - (days_start * 86400)
-            time_min = current_time - (days_end * 86400)
-            logger.info(f"Time filter: last {days_end} days to {days_start} days ago")
-        elif days_start > 0:
-            time_max = current_time - (days_start * 86400)
-            logger.info(f"Time filter: older than {days_start} days")
-
-        # Cursor is in microsecond-like format, convert time bounds
-        # Based on analysis: cursor ≈ timestamp * 1_000_000
-        cursor_min = int(time_min * 1_000_000) if time_min > 0 else 0
-        cursor_max = int(time_max * 1_000_000) if time_max > 0 else float('inf')
-
         if not self._context:
             logger.error("Browser context not initialized")
             return []
@@ -131,12 +109,13 @@ class PlaywrightAdapter:
         seen_ids = set()
         stop_fetching = False
         last_cursor = float('inf')
+        pages_fetched = 0
 
         page = await self._context.new_page()
 
         # Response handler to capture API data
         async def handle_response(response):
-            nonlocal all_videos, seen_ids, stop_fetching, last_cursor
+            nonlocal all_videos, seen_ids, stop_fetching, last_cursor, pages_fetched
 
             if '/aweme/v1/web/aweme/listcollection' not in response.url:
                 return
@@ -161,19 +140,17 @@ class PlaywrightAdapter:
 
                 logger.debug(f"Captured API response: {len(videos_data)} videos, cursor={cursor}")
 
-                # Check if we've passed the time range
-                # cursor decreases as we scroll (older collection times)
-                if time_min > 0 and cursor < cursor_min:
-                    logger.info(f"Reached time limit: cursor {cursor} < min {cursor_min}")
-                    stop_fetching = True
-                    return
-
-                # Also stop if cursor is not changing (no more data)
+                # Stop if cursor is not changing (no more data)
                 if cursor == last_cursor:
                     logger.info("Cursor not changing, no more data")
                     stop_fetching = True
                     return
                 last_cursor = cursor
+
+                # Only count non-empty pages toward max_pages quota
+                # (empty list + has_more=0 is a legitimate end-of-feed response)
+                if videos_data:
+                    pages_fetched += 1
 
                 for item in videos_data:
                     try:
@@ -207,7 +184,11 @@ class PlaywrightAdapter:
 
             for scroll_round in range(max_scroll_rounds):
                 if stop_fetching:
-                    logger.info("Stopping: reached time limit or no more data")
+                    logger.info("Stopping: no more data")
+                    break
+
+                if max_pages > 0 and pages_fetched >= max_pages:
+                    logger.info(f"Reached max pages: {pages_fetched}/{max_pages}")
                     break
 
                 if max_count > 0 and len(all_videos) >= max_count:
@@ -218,7 +199,8 @@ class PlaywrightAdapter:
                 await asyncio.sleep(2)
 
                 current_count = len(all_videos)
-                logger.info(f"Round {scroll_round + 1}/{max_scroll_rounds}: {current_count} videos")
+                page_label = f"Page {pages_fetched}/{max_pages}" if max_pages > 0 else f"Page {pages_fetched}"
+                logger.info(f"{page_label}: {current_count} videos (round {scroll_round + 1}/{max_scroll_rounds})")
 
                 if current_count == last_count:
                     no_new_count += 1

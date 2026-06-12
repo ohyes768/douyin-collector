@@ -34,3 +34,6 @@ cache/
 # 临时文件
 *.tmp
 *.bak
+
+# 调试截图（playwright_adapter.py 异常分支生成）
+debug_uncollect_*.png

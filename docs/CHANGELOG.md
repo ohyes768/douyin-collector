@@ -1,5 +1,60 @@
 # douyin-collector 变更日志
 
+## [1.5.0] - 2026-06-12
+
+### 行为变更
+
+- ⚠️ `max_videos` 默认值从 `0`（不限制）改为 `40`（单次硬上限）
+  - 原因：v1.4.0 移除时间过滤后，理论上 `max_pages=0` 配合前端持续触发 API 可无限累计；设个硬上限避免单次跑出几十几百条
+  - 实际生效：滚动循环每轮入口检查 `len(all_videos) >= max_videos` → break，末尾再 `all_videos[:max_videos]` 切片保底
+  - 不影响：用户配置 `max_videos: 0` 仍可走不限制路径
+
+### 代码
+
+- 🔧 `main.py:80` `get("max_videos", 0)` → `get("max_videos", 40)`
+- 🔧 `src/playwright_adapter.py:94` 函数签名 `max_count: int = 0` → `max_count: int = 40`
+- 🔧 `config/app.yaml.example` 默认 `max_videos: 0` → `max_videos: 40`
+
+### 文档
+
+- 📝 `README.md` `max_videos` 默认值 `0` → `40`
+- 📝 `docs/数据字典.md` `max_videos` 默认值 `0` → `40`
+
+### Bug 修复
+
+- 🐛 修复 Windows 控制台 GBK 编码下 emoji 字符 `UnicodeEncodeError`
+  - 根因：`src/utils.py` 控制台 sink 走 `print()`，Windows cmd 默认 GBK，无法 encode 🔥 等 emoji
+  - 修复：loguru 初始化前 `sys.stdout.reconfigure(encoding="utf-8", errors="replace")`，无法编码字符替换为 `?`
+  - 影响：之前 loguru 捕获后业务继续，但控制台 INFO 日志会丢几行（文件日志不受影响）
+
+---
+
+## [1.4.0] - 2026-06-08
+
+### 重大变更
+
+- ⚠️ 移除 `days_limit` / `days_start` 时间过滤配置
+  - 旧版用 cursor 值代理"收藏时间"做时间区间过滤，调研发现实际漏采几十天前收藏的视频
+  - 新版改为按 cursor 分页数限制（`max_pages`）
+  - 行为差异：旧版只采"最近 N 天收藏的"；新版采"最近 N 页 cursor 分页（约 N×10 条）"，按收藏时间倒序
+- ✨ 新增 `max_pages` 配置项
+  - 默认 3 页（约 30 条）
+  - 0 表示不限制（一直翻到无更多数据）
+
+### 代码
+
+- 🔧 重构 `src/playwright_adapter.py` - `get_all_collections_videos()` 方法
+  - 删除时间过滤计算（`time_min` / `time_max` / `cursor_min`）
+  - 删除停止条件 `cursor < cursor_min`
+  - 新增 `pages_fetched` 计数器，仅非空 `aweme_list` 响应计 1 页
+  - 新增停止条件 `pages_fetched >= max_pages`
+  - 删除死代码 `_DEFAULT_COUNT = 18`、`_MAX_PAGES = 5`
+- 🔧 改 `src/collector.py` - `fetch_collection_videos()` 透传 `max_pages`
+- 🔧 改 `main.py` - 读 `max_pages` 配置，调 `get_all_collections_videos(max_pages=...)`
+- 🔧 改 `config/app.yaml.example` - 删 `days_limit`，加 `max_pages: 3`
+
+---
+
 ## [1.3.0] - 2026-03-05
 
 ### 功能改进

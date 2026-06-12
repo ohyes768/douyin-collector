@@ -131,9 +131,9 @@ app:
     # 从现有 douying-collect 复制
     path: "config/cookie.yaml"
 
-  # 采集配置
+  # 采集配置（v1.4.0 后）
   collector:
-    days_limit: 7          # 默认最近 7 天
+    max_pages: 3           # 最多采 3 页 cursor 分页（约 30 条），0 表示不限制
     max_videos: 0          # 0 表示不限制
     max_file_size: 104857600  # 100MB
     exclude_products: true

@@ -74,8 +74,8 @@ scripts\run.bat
 
 | 选项 | 说明 | 默认值 |
 |------|------|--------|
-| `days_limit` | 采集最近 N 天的视频 | 7 |
-| `max_videos` | 最大采集数量，0 表示不限制 | 0 |
+| `max_pages` | 最多采 N 页（每页约 10 条），0 表示不限制 | 3 |
+| `max_videos` | 最大采集数量，0 表示不限制 | 40 |
 | `exclude_products` | 是否排除商品视频 | true |
 | `max_retries` | 失败重试次数 | 3 |
 

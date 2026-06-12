@@ -76,8 +76,8 @@ async def main():
 
     # 获取配置
     collector_config = config["app"]["collector"]
-    days_limit = collector_config.get("days_limit", 7)
-    max_videos = collector_config.get("max_videos", 0)
+    max_pages = collector_config.get("max_pages", 3)
+    max_videos = collector_config.get("max_videos", 40)
     exclude_products = collector_config.get("exclude_products", True)
 
     # 初始化上传器
@@ -86,11 +86,11 @@ async def main():
     # 采集视频
     try:
         async with DouyinCollector("config/cookie.yaml") as collector:
-            logger.info(f"Fetching last {days_limit} days videos...")
+            logger.info(f"Fetching up to {max_pages} pages (~{max_pages * 10} videos)...")
 
             videos = await collector.fetch_collection_videos(
+                max_pages=max_pages,
                 max_count=max_videos,
-                days_end=days_limit,
                 exclude_products=exclude_products
             )
 

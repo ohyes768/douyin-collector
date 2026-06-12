@@ -1,13 +1,18 @@
-# douyin-collector 应用配置示例
-# 复制此文件为 app.yaml 并修改相应配置
+# douyin-collector v2 应用配置示例
+# v2 部署在 F:\personal-projects\douyin-collector\
+# 新服务端部署在新机器（不是原阿里云 ECS）
+# ⚠️  部署前请修改 YOUR_SERVER_URL 占位符
 
 app:
-  # 服务器配置
+  # 服务器配置（指向新机器的 file-system-go）
   server:
-    url: "http://your-server-ip:8000"    # 修改为你的服务器地址
-    timeout: 300                          # 上传超时（秒）
-    check_endpoint: "/api/check/{filename}"
-    upload_endpoint: "/upload"
+    url: "http://YOUR_SERVER_URL:8000"   # ← 改为新机器的实际 URL
+    timeout: 300
+
+  # Processor 配置（指向新机器的 douyin-processor）
+  processor:
+    url: "http://YOUR_SERVER_URL:8093"   # ← 改为新机器的实际 URL
+    timeout: 10
 
   # Cookie 配置
   cookie:
@@ -15,27 +20,27 @@ app:
 
   # 采集配置
   collector:
-    days_limit: 7              # 默认最近 7 天
-    max_videos: 0              # 0 表示不限制
+    max_pages: 3               # 最多采 N 页（每页约 10 条），0 表示不限制
+    max_videos: 40             # 单次最大视频数（硬上限），0 表示不限制
     max_file_size: 104857600   # 100MB
     exclude_products: true     # 排除商品视频
 
   # 下载配置
   download:
     cache_dir: "cache/videos"
-    chunk_size: 1048576        # 1MB
+    chunk_size: 1048576
     timeout: 300
 
   # 处理配置
   processing:
-    max_retries: 3             # 最大重试次数
-    retry_delay: 5             # 重试延迟（秒）
-    serial: true               # 串行处理
+    max_retries: 3
+    retry_delay: 5
+    serial: true
 
-  # 通知配置
+  # 通知配置（可选，保留钉钉告警）
   notification:
-    enabled: true              # 是否启用通知
-    dingtalk_webhook: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN"  # 钉钉机器人 Webhook URL
+    enabled: true
+    dingtalk_webhook: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN"
 
   # 日志配置
   logging:

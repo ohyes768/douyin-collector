@@ -32,9 +32,8 @@ class DouyinCollector:
 
     async def fetch_collection_videos(
         self,
+        max_pages: int = 3,
         max_count: int = 0,
-        days_start: int = 0,
-        days_end: int = 0,
         exclude_products: bool = True
     ) -> List[VideoInfo]:
         """Fetch collection videos"""
@@ -44,9 +43,8 @@ class DouyinCollector:
 
         logger.info("Fetching videos...")
         videos = await self._adapter.get_all_collections_videos(
+            max_pages=max_pages,
             max_count=max_count,
-            days_start=days_start,
-            days_end=days_end
         )
 
         if exclude_products:
